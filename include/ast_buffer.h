@@ -14,9 +14,9 @@ class ASTBuffer {
     ts::Tree m_tree;
 public:
     ASTBuffer(ts::Language language) : m_parser(language) {}
-    buffer_t &buffer() { return m_buffer; }
-    ts::Tree &tree() { return m_tree; }
-    ts::Parser &parser() { return m_buffer; }
+    inline buffer_t &buffer() { return m_buffer; }
+    inline ts::Tree &tree() { return m_tree; }
+    inline ts::Parser &parser() { return m_parser; }
     void insert_origin(uint32_t pos, const char_t *map, size_t length) {
         if (!m_tree.empty()) {
             TSInputEdit input;

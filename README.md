@@ -1,14 +1,12 @@
-# ast-buffer
+# ASTBuffer
 Fast incremental parsing using tree-sitter and piece table
-
-
 
 使用tree-sitter+piece-table实现快速增量解析 并生成ast
 
 piece-table 测试了一下300MB左右的文件5000行中插入数据需要48ms
 
 * 主要是给我的code editor改进一下储存结构 🤭
-* 或者可以给您的editor加成个[LSP](https://github.com/alextsao1999/lsp-cpp)
+* 如果喜欢的话或者可以给您的editor加成个 [LSP](https://github.com/alextsao1999/lsp-cpp) ~
 
 
 ## Usage
