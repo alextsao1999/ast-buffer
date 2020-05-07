@@ -15,8 +15,32 @@ public:
     ts::Tree m_tree;
     buffer_t &buffer() { return m_buffer; }
     ts::Tree &tree() { return m_tree; }
+    ts::Parser &parser() { return m_buffer; }
+    void insert_origin(uint32_t pos, const char_t *map, size_t length) {
+        if (!m_tree.empty()) {
+            TSInputEdit input;
+            input.start_byte = pos;
+            input.old_end_byte = pos;
+            input.new_end_byte = pos + length;
+            fixup_input(input);
+            m_tree.edit(input);
+        }
+        m_buffer.insert_origin(pos, map, length);
+        paritial_parse();
+    }
+    void append_origin(const char_t *map, size_t length) {
+        if (!m_tree.empty()) {
+            TSInputEdit input;
+            input.start_byte = m_buffer.size();
+            input.old_end_byte = input.start_byte;
+            input.new_end_byte = input.start_byte + length;
+            fixup_input(input);
+            m_tree.edit(input);
+        }
+        m_buffer.append_origin(map, length);
+        paritial_parse();
+    }
     void append(const string_t &str) {
-        m_buffer.append(str);
         if (!m_tree.empty()) {
             TSInputEdit input;
             input.start_byte = m_buffer.size();
@@ -25,10 +49,10 @@ public:
             fixup_input(input);
             m_tree.edit(input);
         }
+        m_buffer.append(str);
         paritial_parse();
     }
     void insert(uint32_t pos, const string_t &str) {
-        m_buffer.insert(pos, str);
         if (!m_tree.empty()) {
             TSInputEdit input;
             input.start_byte = pos;
@@ -37,10 +61,10 @@ public:
             fixup_input(input);
             m_tree.edit(input);
         }
+        m_buffer.insert(pos, str);
         paritial_parse();
     }
     void erase(uint32_t start, uint32_t end) {
-        m_buffer.erase(start, end);
         if (!m_tree.empty()) {
             TSInputEdit input;
             input.start_byte = start;
@@ -49,6 +73,7 @@ public:
             fixup_input(input);
             m_tree.edit(input);
         }
+        m_buffer.erase(start, end);
         paritial_parse();
     }
     string_t node_string(const ts::Node& node) {

@@ -2,8 +2,8 @@
 // Created by Alex on 2020/5/4.
 //
 #include <ast_buffer.h>
+#include <origin.h>
 int main() {
-    //using namespace ts;
     ASTBuffer<> ast;
     ast.append("int main(int abc) {\n");
     ast.append("    auto *str = \"asdf\";\n");
@@ -12,6 +12,8 @@ int main() {
     ast.append("}\n");
     //std::cout << ast.tree().root().string();
     ast.insert(ast.buffer().line_end(1), "a = 200;");
+    ast.insert(ast.buffer().line_end(1), "int b = 1000;");
+    ast.append("int add(int x, int y) {return x + y;}\n");
     ast.dump();
 
     auto query = ts::Language::cpp().query("(string_literal) @string\n"

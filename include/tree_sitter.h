@@ -142,6 +142,15 @@ namespace ts {
         void set_logger(Logger *logger) {
             ts_parser_set_logger(m_parser, {logger, Logger::Callback});
         }
+        void set_timeout(uint64_t micros) {
+            ts_parser_set_timeout_micros(m_parser, micros);
+        }
+        const size_t *get_cancel_position() {
+            return ts_parser_cancellation_flag(m_parser);
+        }
+        void set_cancel_position(size_t *pos) {
+            ts_parser_set_cancellation_flag(m_parser, pos);
+        }
         Logger *get_logger() {
             return (Logger *) ts_parser_logger(m_parser).payload;
         }
