@@ -1156,8 +1156,8 @@ void ts_query_cursor_set_point_range(
   self->end_point = end_point;
 }
 
-const char *ts_query_cursor_get_name(TSQueryCursor *cursor, TSQueryMatch *match, uint32_t *length) {
-  return ts_query_capture_name_for_id(cursor->query, match->id, length);
+const char *ts_query_cursor_get_name(TSQueryCursor *cursor, uint32_t index, uint32_t *length) {
+  return ts_query_capture_name_for_id(cursor->query, index, length);
 }
 
 // Search through all of the in-progress states, and find the captured

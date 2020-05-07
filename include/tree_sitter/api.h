@@ -792,7 +792,7 @@ void ts_query_cursor_exec(TSQueryCursor *, const TSQuery *, TSNode);
 void ts_query_cursor_set_byte_range(TSQueryCursor *, uint32_t, uint32_t);
 void ts_query_cursor_set_point_range(TSQueryCursor *, TSPoint, TSPoint);
 
-const char *ts_query_cursor_get_name(TSQueryCursor *, TSQueryMatch *, uint32_t *length);
+const char *ts_query_cursor_get_name(TSQueryCursor *, uint32_t , uint32_t *length);
 
 /**
  * Advance to the next match of the currently running query.

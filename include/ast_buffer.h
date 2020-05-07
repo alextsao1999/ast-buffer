@@ -17,6 +17,18 @@ public:
     inline buffer_t &buffer() { return m_buffer; }
     inline ts::Tree &tree() { return m_tree; }
     inline ts::Parser &parser() { return m_parser; }
+    inline TSPoint get_point(uint32_t byte) {
+        size_t line = m_buffer.get_line(byte);
+        return {line, byte - m_buffer.line_start(line)};
+    }
+    inline uint32_t get_byte(TSPoint pt) {
+        return m_buffer.line_start(pt.row) + pt.column;
+    }
+    inline void fixup_input(TSInputEdit &input) {
+        input.start_point = get_point(input.start_byte);
+        input.old_end_point = get_point(input.old_end_byte);
+        input.new_end_point = get_point(input.new_end_byte);
+    };
     void insert_origin(uint32_t pos, const char_t *map, size_t length) {
         if (!m_tree.empty()) {
             TSInputEdit input;
@@ -80,14 +92,6 @@ public:
     string_t node_string(const ts::Node& node) {
         return m_buffer.range_string(node.start_byte(), node.start_byte() + node.length());
     };
-    void fixup_input(TSInputEdit &input) {
-        uint32_t line = m_buffer.get_line(input.start_byte);
-        input.start_point = {line, input.start_byte - m_buffer.line_start(line)};
-        line = m_buffer.get_line(input.old_end_byte);
-        input.old_end_point = {line, input.old_end_byte - m_buffer.line_start(line)};
-        line = m_buffer.get_line(input.new_end_byte);
-        input.new_end_point = {line, input.new_end_byte - m_buffer.line_start(line)};
-    };
     void full_parse() {
         typename buffer_t::Iterator iter;
         m_parser.parse(m_tree, [&](uint32_t byte, TSPoint point, uint32_t &read) -> const char * {
@@ -133,8 +137,11 @@ public:
                 }
             } else {
                 print_intent(indent);
-                std::cout << cursor.node().type()
-                          << " -> [" << cursor.node().start_byte() << "," << cursor.node().end_byte() << "]";
+                auto node = cursor.node();
+                if (cursor.field_name()) {
+                    std::cout << cursor.field_name() << ": ";
+                }
+                std::cout << node.type() << " [" << node.start_byte() << "," << node.end_byte() << "]";
                 if (indent) {
                     //std::cout << " [" << node_string(cursor.node()) << "]";
                 }
@@ -147,7 +154,6 @@ public:
                 }
             }
         }
-
     }
 };
 

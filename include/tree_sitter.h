@@ -47,9 +47,9 @@ namespace ts {
             inline TSQueryMatch &match() {
                 return m_match;
             }
-            std::string name() {
+            std::string capture_name(uint32_t index = 0) {
                 uint32_t length = 0;
-                auto *str = ts_query_cursor_get_name(m_cursor, &m_match, &length);
+                auto *str = ts_query_cursor_get_name(m_cursor, m_match.captures[index].index, &length);
                 return std::string(str, length);
             }
         };
@@ -102,11 +102,29 @@ namespace ts {
         Cursor inline exec(const Node &node);
     };
     class Language {
-        TSLanguage *m_language = nullptr;
+        const TSLanguage *m_language = nullptr;
     public:
-        Language(TSLanguage *language) : m_language(language) {}
-        operator TSLanguage *() { return m_language; }
-        Query query(const std::string &query) { return Query(*this, query); }
+        constexpr Language(const TSLanguage *language) : m_language(language) {}
+        inline operator TSLanguage *() { return (TSLanguage *) m_language; }
+        inline operator const TSLanguage *() { return m_language; }
+        inline Query query(const std::string &query) { return Query(*this, query); }
+        inline uint32_t field_count() { return ts_language_field_count(m_language); }
+        inline uint32_t symbol_count() { return ts_language_symbol_count(m_language); }
+        inline TSSymbol symbol(const char *name, uint32_t length, bool is_named) {
+            return ts_language_symbol_for_name(m_language, name, length, is_named);
+        }
+        inline const char *symbol_name(TSSymbol symbol) {
+            return ts_language_symbol_name(m_language, symbol);
+        }
+        inline TSSymbolType symbol_type(TSSymbol symbol) {
+            return ts_language_symbol_type(m_language, symbol);
+        }
+        inline const char *field_name(TSFieldId id) {
+            return ts_language_field_name_for_id(m_language, id);
+        }
+        inline TSFieldId field_id(const char *name, uint32_t length) {
+            return ts_language_field_id_for_name(m_language, name, length);
+        }
         static Language cpp(){
             extern TSLanguage *language_cpp();
             return language_cpp();
@@ -139,6 +157,13 @@ namespace ts {
         inline Tree parse(const std::string &str);
         inline void parse(Tree &tree, const std::string &str, TSInputEncoding encoding = TSInputEncodingUTF8);
         inline void parse(Tree &tree, FeedFunction feeder, TSInputEncoding encoding = TSInputEncodingUTF8);
+        Language language() { return ts_parser_language(m_parser); }
+        void set_range(TSRange *range, uint32_t count) {
+            ts_parser_set_included_ranges(m_parser, range, count);
+        }
+        void set_language(Language language) {
+            ts_parser_set_language(m_parser, language);
+        }
         void set_logger(Logger *logger) {
             ts_parser_set_logger(m_parser, {logger, Logger::Callback});
         }
@@ -200,6 +225,9 @@ namespace ts {
         inline Node begin() { return ts_node_child(m_node, 0); }
         inline Node end() { return ts_node_child(m_node, count() - 1); }
         inline Node &operator*() { return *this; }
+        inline TSRange range() {
+            return {start_point(), end_point(), start_byte(), end_byte()};
+        }
         Cursor walk();
         void edit(const TSInputEdit &input) {
             ts_node_edit(&m_node, &input);

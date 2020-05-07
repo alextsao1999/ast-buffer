@@ -4,7 +4,7 @@
 #include <ast_buffer.h>
 #include <origin.h>
 int main() {
-    ASTBuffer<> ast(ts::Language::cpp());
+    ASTBuffer<char> ast(ts::Language::cpp());
     ast.parser().set_timeout(500);
     //size_t position = 50000;
     //ast.parser().set_cancel_position(&position);
@@ -16,22 +16,22 @@ int main() {
     ast.append("    *str = test();\n");
     ast.append("    return 0;\n");
     ast.append("}\n");
-
+    ast.append("test(get(\"1234\"));\n");
     //std::cout << ast.tree().root().string();
-    ast.insert(ast.buffer().line_end(1), "a = 200;");
-    ast.insert(ast.buffer().line_end(1), "int b = 1000;");
     ast.append("int add(int x, int y) {return x + y;}\n");
     ast.dump();
 
-    auto query = ts::Language::cpp().query("(string_literal) @string\n"
-                                           "(number_literal) @number");
+    auto query = ts::Language::cpp().query(
+            "(number_literal) @number"
+            "(string_literal) @string"
+            "(call_expression function: (identifier) @fun-call)");
 
     auto cursor = query.exec(ast.tree().root());
-    while (cursor.next_match()) {
-        for (int i = 0; i < cursor.match().capture_count; ++i) {
-            ts::Node node = cursor.match().captures[i].node;
-            std::cout << "capture:" << node.string() << "->" << ast.node_string(node) << std::endl;
-        }
+    uint32_t index = 0;
+    while (cursor.next_capture(index)) {
+        ts::Node node = cursor.match().captures->node;
+        auto name = cursor.capture_name(index);
+        std::cout <<"capture:" << node.string() << " " << name << " -> " << ast.node_string(node) << std::endl;
     }
 
     return 0;
