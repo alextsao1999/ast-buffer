@@ -24,16 +24,16 @@ int main() {
     auto query = ts::Language::cpp().query(
             "(number_literal) @number"
             "(string_literal) @string"
-            "(call_expression function: (identifier) @fun-call)");
+            "(call_expression function: (identifier) @fun-call)"
+            "(binary_expression left: (identifier) @left right: (identifier) @right)");
 
     auto cursor = query.exec(ast.tree().root());
-    uint32_t index = 0;
+    uint32_t index;
     while (cursor.next_capture(index)) {
-        ts::Node node = cursor.match().captures->node;
+        auto node = cursor.capture_node(index);
         auto name = cursor.capture_name(index);
         std::cout <<"capture:" << node.string() << " " << name << " -> " << ast.node_string(node) << std::endl;
     }
-
     return 0;
 }
 

@@ -18,9 +18,10 @@ namespace ts {
         TSQueryError m_error;
     public:
         class Cursor {
-        public:
+            friend class Query;
             TSQueryCursor *m_cursor = nullptr;
             TSQueryMatch m_match;
+        public:
             Cursor() : m_cursor(ts_query_cursor_new()) {}
             Cursor(const Cursor &rhs) = delete;
             Cursor(Cursor &&rhs) {
@@ -47,6 +48,8 @@ namespace ts {
             inline TSQueryMatch &match() {
                 return m_match;
             }
+            inline uint32_t capture_count() { return m_match.capture_count; }
+            inline Node capture_node(uint32_t index = 0);
             std::string capture_name(uint32_t index = 0) {
                 uint32_t length = 0;
                 auto *str = ts_query_cursor_get_name(m_cursor, m_match.captures[index].index, &length);
@@ -101,6 +104,8 @@ namespace ts {
         }
         Cursor inline exec(const Node &node);
     };
+
+
     class Language {
         const TSLanguage *m_language = nullptr;
     public:
@@ -326,7 +331,9 @@ namespace ts {
         ts_query_cursor_exec(cursor.m_cursor, m_query, node.m_node);
         return cursor;
     }
-
+    inline Node Query::Cursor::capture_node(uint32_t index) {
+        return Node(m_match.captures[index].node);
+    }
 }
 
 #endif //GEDITOR_TREE_SITTER_H
