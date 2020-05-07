@@ -8,11 +8,12 @@
 #include <tree_sitter.h>
 template <class char_t = char, class string_t = std::basic_string<char_t>>
 class ASTBuffer {
-public:
     using buffer_t = PieceTable<char_t, string_t>;
     buffer_t m_buffer;
-    ts::Parser m_parser = ts::Language::cpp();
+    ts::Parser m_parser;
     ts::Tree m_tree;
+public:
+    ASTBuffer(ts::Language language) : m_parser(language) {}
     buffer_t &buffer() { return m_buffer; }
     ts::Tree &tree() { return m_tree; }
     ts::Parser &parser() { return m_buffer; }

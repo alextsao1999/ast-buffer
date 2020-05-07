@@ -4,12 +4,19 @@
 #include <ast_buffer.h>
 #include <origin.h>
 int main() {
-    ASTBuffer<> ast;
+    ASTBuffer<> ast(ts::Language::cpp());
+    ast.parser().set_timeout(500);
+    //size_t position = 50000;
+    //ast.parser().set_cancel_position(&position);
+    //Origin origin("your/file/path/xxxx.txt");
+    //ast.append_origin((char *) origin.ptr(), origin.size());
+
     ast.append("int main(int abc) {\n");
     ast.append("    auto *str = \"asdf\";\n");
     ast.append("    *str = test();\n");
     ast.append("    return 0;\n");
     ast.append("}\n");
+
     //std::cout << ast.tree().root().string();
     ast.insert(ast.buffer().line_end(1), "a = 200;");
     ast.insert(ast.buffer().line_end(1), "int b = 1000;");
