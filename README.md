@@ -7,12 +7,15 @@ Fast incremental parsing using tree-sitter and piece table
 
 piece-table 测试了一下300MB左右的文件插入5000行数据需要48ms
 
+* 主要是给我的code editor改进一下储存结构 🤭
+* 或者 可以给您的editor加成个[lsp](https://github.com/alextsao1999/lsp-cpp)
+
+
 ## Usage
 
 ```c++
 #include <ast_buffer.h>
 int main() {
-    //using namespace ts;
     ASTBuffer<char> ast;
     ast.append("int main(int abc) {\n");
     ast.append("    auto *str = \"asdf\";\n");
