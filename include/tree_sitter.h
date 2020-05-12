@@ -7,11 +7,43 @@
 #include <tree_sitter/api.h>
 #include <string>
 #include <functional>
+extern "C" TSLanguage *tree_sitter_cpp();
 namespace ts {
+    using string_view = std::string;
     class Tree;
     class Node;
     class Cursor;
     using FeedFunction = std::function<const void *(uint32_t byte, TSPoint pt, uint32_t &read_length)>;
+    class PredicateStep {
+        friend class Query;
+        TSQuery *m_query = nullptr;
+        uint32_t m_length = 0;
+        const TSQueryPredicateStep *m_predicate = nullptr;
+    public:
+        using Iterator = const TSQueryPredicateStep *;
+        PredicateStep(TSQuery *query, uint32_t pattern_index) : m_query(query) {
+            m_predicate = ts_query_predicates_for_pattern(query, pattern_index, &m_length);
+        }
+        inline bool empty() { return !m_predicate; }
+        inline uint32_t count() { return m_length; }
+        inline TSQueryPredicateStepType type(uint32_t index) { return m_predicate[index].type; }
+        inline uint32_t value_id(uint32_t index) { return m_predicate[index].value_id; }
+        void step(std::function<void(Iterator step)> func) {
+            bool done = true;
+            for (int i = 0; i < m_length; ++i) {
+                if (m_predicate[i].type == TSQueryPredicateStepTypeDone) {
+                    done = true;
+                } else {
+                    if (done) {
+                        func(&m_predicate[i]);
+                        done = false;
+                    }
+                }
+            }
+        }
+        inline Iterator begin() { return m_predicate; }
+        inline Iterator end() { return m_predicate + m_length; }
+    };
     class Query {
         TSQuery *m_query = nullptr;
         uint32_t m_offset;
@@ -48,16 +80,26 @@ namespace ts {
             inline TSQueryMatch &match() {
                 return m_match;
             }
+            inline uint32_t get_index(uint32_t capture_id) {
+                for (int i = 0; i < m_match.capture_count; ++i) {
+                    if (m_match.captures[i].index == capture_id) {
+                        return i;
+                    }
+                }
+                return 0;
+            }
             inline uint32_t capture_count() { return m_match.capture_count; }
+            inline uint32_t capture_id(uint32_t index) { return m_match.captures[index].index; }
             inline Node capture_node(uint32_t index = 0);
-            std::string capture_name(uint32_t index = 0) {
+            string_view capture_name(uint32_t index = 0) {
                 uint32_t length = 0;
                 auto *str = ts_query_cursor_get_name(m_cursor, m_match.captures[index].index, &length);
-                return std::string(str, length);
+                return string_view(str, length);
             }
+            inline uint16_t pattern_index() { return m_match.pattern_index; };
         };
-        Query(TSLanguage *language, const std::string &query) {
-            m_query = ts_query_new(language, query.c_str(), query.length(), &m_offset, &m_error);
+        Query(TSLanguage *language, const string_view &query) {
+            m_query = ts_query_new(language, query.data(), query.length(), &m_offset, &m_error);
         }
         Query(const Query &rhs) = delete;
         Query(Query &&rhs) {
@@ -71,11 +113,11 @@ namespace ts {
         }
         uint32_t offset() { return m_offset; }
         TSQueryError error() { return m_error; }
-        void disable_pattern(uint32_t ptn) {
-            ts_query_disable_pattern(m_query, ptn);
+        void disable_pattern(uint32_t pattern) {
+            ts_query_disable_pattern(m_query, pattern);
         }
-        void disable_capture(const std::string &name) {
-            ts_query_disable_capture(m_query, name.c_str(), name.length());
+        void disable_capture(const string_view &name) {
+            ts_query_disable_capture(m_query, name.data(), name.length());
         }
         uint32_t capture_count() {
             return ts_query_capture_count(m_query);
@@ -86,26 +128,24 @@ namespace ts {
         uint32_t string_count() {
             return ts_query_string_count(m_query);
         }
-        std::string capture_name(uint32_t id) {
+        string_view capture_name(uint32_t capture_id) {
             uint32_t length;
-            auto *str = ts_query_capture_name_for_id(m_query, id, &length);
-            return std::string(str, length);
+            auto *str = ts_query_capture_name_for_id(m_query, capture_id, &length);
+            return string_view(str, length);
         }
-        std::string string_value_for_id(uint32_t id) {
+        string_view string_value(uint32_t string_id) {
             uint32_t length;
-            auto *str = ts_query_string_value_for_id(m_query, id, &length);
-            return std::string(str, length);
+            auto *str = ts_query_string_value_for_id(m_query, string_id, &length);
+            return string_view(str, length);
         }
-        const TSQueryPredicateStep *predicates_for_pattern(uint32_t id, uint32_t &length) {
-            return ts_query_predicates_for_pattern(m_query, id, &length);
+        PredicateStep pattern_predicates(uint32_t pattern_index) {
+            return {m_query, pattern_index};
         }
-        uint32_t start_byte_for_pattern(uint32_t pattern_index) {
+        uint32_t pattern_start_byte(uint32_t pattern_index) {
             return ts_query_start_byte_for_pattern(m_query, pattern_index);
         }
         Cursor inline exec(const Node &node);
     };
-
-
     class Language {
         const TSLanguage *m_language = nullptr;
     public:
@@ -131,8 +171,7 @@ namespace ts {
             return ts_language_field_id_for_name(m_language, name, length);
         }
         static Language cpp(){
-            extern TSLanguage *language_cpp();
-            return language_cpp();
+            return tree_sitter_cpp();
         };
     };
     class Logger {
@@ -198,7 +237,12 @@ namespace ts {
         bool is_missing() const { return ts_node_is_missing(m_node); }
         bool is_named() const { return ts_node_is_named(m_node); }
         uint32_t count() const { return ts_node_child_count(m_node); }
-        char *string() { return ts_node_string(m_node); }
+        std::string string() {
+            auto *ptr = ts_node_string(m_node);
+            std::string _string(ptr);
+            ::free(ptr);
+            return _string;
+        }
         const char *type() { return ts_node_type(m_node); }
         uint32_t start_byte() const { return ts_node_start_byte(m_node); }
         uint32_t end_byte() const { return ts_node_end_byte(m_node); }
@@ -266,6 +310,7 @@ namespace ts {
         void edit(const TSInputEdit &input) {
             ts_tree_edit(m_tree, &input);
         }
+        Tree copy() { return Tree(*this); }
     };
     class Cursor {
         TSTreeCursor m_cursor;

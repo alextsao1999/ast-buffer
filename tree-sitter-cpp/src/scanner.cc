@@ -93,7 +93,6 @@ struct Scanner {
 }
 
 extern "C" {
-TSLanguage *tree_sitter_cpp();
 void *tree_sitter_cpp_external_scanner_create() {
   return new Scanner();
 }
@@ -116,8 +115,4 @@ void tree_sitter_cpp_external_scanner_destroy(void *payload) {
   delete scanner;
 }
 
-}
-
-TSLanguage *language_cpp() {
-    return tree_sitter_cpp();
 }

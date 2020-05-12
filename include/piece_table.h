@@ -14,18 +14,19 @@
 template <class char_t = char, class string_t = std::basic_string<char_t>>
 class PieceTable {
 public:
-    PieceTable() {
-        m_buffers.resize(2);
-    }
     class Piece;
+    constexpr static char_t char_lf = char_t('\n');
     using buffer_idx_t = uint16_t;
     using iter_t = typename std::set<Piece>::iterator;
     using iter_func = std::function<void(const char_t *string, size_t length)>;
     using offset_t = uint32_t;
-    enum BufferType {
+    enum {
         Append,
         Insert
     };
+    PieceTable() {
+        m_buffers.resize(2);
+    }
     struct Buffer {
         const char_t *map_ptr = nullptr;
         // Append-Only Buffer
@@ -41,7 +42,7 @@ public:
         inline void set_map(const char_t *ptr, size_t length) {
             map_ptr = ptr;
             for (size_t index = 0; index < length; ++index) {
-                if (ptr[index] == '\n') {
+                if (ptr[index] == char_lf) {
                     lines.push_back(index);
                 }
             }
@@ -51,7 +52,7 @@ public:
             size_t offset = buffer->size();
             buffer->append(string);
             for (auto ch : string) {
-                if (ch == '\n') {
+                if (ch == char_lf) {
                     lines.push_back(offset);
                 }
                 offset++;
@@ -165,6 +166,13 @@ public:
         auto iter = --m_pieces.end();
         return iter->left_length + iter->length;
     }
+    size_t length() {
+        if (m_pieces.empty()) {
+            return 0;
+        }
+        auto iter = --m_pieces.end();
+        return iter->left_length + iter->length;
+    }
     size_t lines() {
         if (m_pieces.empty()) {
             return 0;
@@ -192,19 +200,25 @@ public:
         return line_end(line - 1) + 1;
     }
     offset_t line_end(size_t line) {
+        if (line >= lines()) {
+            return size();
+        }
         auto iter = lower_line(line);
         size_t offset = line - iter->left_lines;
         auto &buffer = m_buffers[iter->buffer];
         auto start = buffer.lines[iter->buffer_line_offset + offset];
         return iter->left_length + start - iter->start;
     }
-    void append(const string_t &string) {
+    iter_t append(const string_t &string) {
         Piece piece = feed(string, Append);
         piece.left_lines = lines();
         piece.left_length = size();
-        m_pieces.emplace(piece);
+        return std::get<0>(m_pieces.emplace(piece));
     }
     iter_t insert(offset_t pos, const string_t &string) {
+        if (pos >= size()) {
+            return append(string);
+        }
         auto iter = split(pos);
         Piece pt = feed(string, Insert);
         pt.left_lines = iter->left_lines;
@@ -212,7 +226,7 @@ public:
         fixup(iter, pt.length, pt.buffer_lines);
         return m_pieces.insert(iter, pt);
     }
-    bool erase(offset_t start, offset_t end) {
+    uint32_t erase(offset_t start, offset_t end) {
         auto iter_start = split(start);
         auto iter_end = split(end);
         int32_t delta_length = 0;
@@ -223,7 +237,7 @@ public:
         }
         m_pieces.erase(iter_start, iter_end);
         fixup(iter_end, -delta_length, -delta_lines);
-        return true;
+        return delta_lines;
     }
     inline const char_t &char_at(offset_t pos) {
         auto node = upper_pos(pos);
@@ -280,10 +294,7 @@ public:
         });
         return string;
     }
-    void append_origin(const char_t *map, size_t length) {
-        if (!map) {
-            return;
-        }
+    iter_t append_origin(const char_t *map, size_t length) {
         Piece piece;
         piece.buffer = m_buffers.size();
         piece.start = 0;
@@ -295,8 +306,7 @@ public:
         auto &back = m_buffers.back();
 
         piece.buffer_lines = back.lines.size();
-        m_pieces.emplace(piece);
-
+        return std::get<0>(m_pieces.emplace(piece));
     }
     iter_t insert_origin(offset_t pos, const char_t *map, size_t length) {
         auto iter = split(pos);
@@ -332,6 +342,9 @@ public:
     }
 private:
     iter_t split(offset_t pos) {
+        if (pos >= size()) {
+            return m_pieces.end();
+        }
         auto iter = upper_pos(pos);
         if (iter->left_length == pos) {
             return iter;
@@ -379,14 +392,13 @@ private:
         auto end = &(m_buffers[piece.buffer][piece.start + piece.length]);
         piece.buffer_lines = 0;
         for (; iter != end; iter++) {
-            if (*iter == '\n') {
+            if (*iter == char_lf) {
                 piece.buffer_lines++;
             }
         }*/
     }
     inline void fixup(iter_t iter, int32_t delta_length = 0, int32_t delta_lines = 0) {
-        auto end = m_pieces.end();
-        for (; iter != end; iter++) {
+        for (auto end = m_pieces.end(); iter != end; iter++) {
             iter->left_length += delta_length;
             iter->left_lines += delta_lines;
         }
